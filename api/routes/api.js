@@ -54,7 +54,7 @@ router.post('/', upload.single("file"), (req, res, next) => {
                                 title:title,
                                 description:des,
                                 rating:rating,
-                                path:img
+                                img:img
                             });
                         }
                     });
@@ -80,7 +80,7 @@ router.post('/', upload.single("file"), (req, res, next) => {
                         title:title,
                         description:des,
                         rating:rating,
-                        path:""
+                        img:""
                     });
                 }
             });

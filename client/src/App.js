@@ -26,7 +26,7 @@
 
 import React from 'react'
 // import Banner from './Banner'
-import { View } from '@instructure/ui-view'
+import { View, ContextView } from '@instructure/ui-view'
 import { DrawerLayout } from '@instructure/ui-drawer-layout'
 import { Avatar } from '@instructure/ui-avatar'
 import { AppNav } from '@instructure/ui-navigation'
@@ -45,32 +45,75 @@ import { SimpleSelect } from '@instructure/ui-simple-select'
 import { Billboard } from '@instructure/ui-billboard'
 
 import axios from 'axios'
+import requirejs from 'requirejs'
 
+/*
+requirejs.config({
+    //Pass the top-level main.js/index.js require
+    //function to requirejs so that node modules
+    //are loaded relative to the top-level JS file.
+    nodeRequire: require
+})
+*/
 
 import '@instructure/canvas-theme'
 
 const App = () => {
-    const [filmSelected, setFilmSelected] = React.useState(false)
-    const [tvSelected, setTVSelected] = React.useState(false)
+    const [filmSelected, setFilmSelected] = React.useState(localStorage.getItem('filmSelected') || false)
+    const [tvSelected, setTVSelected] = React.useState(localStorage.getItem('tvSelected') || false)
     const setFilm = event => {
         setFilmSelected(true)
         setTVSelected(false)
+        localStorage.setItem('filmSelected', true)
+        localStorage.setItem('tvSelected', false)
     }
 
     const setTV = event => {
         setTVSelected(true)
         setFilmSelected(false)
+        localStorage.setItem('filmSelected', false)
+        localStorage.setItem('tvSelected', true)
     }
 
     const reset = event => {
         setFilmSelected(false)
         setTVSelected(false)
+        localStorage.setItem('filmSelected', false)
+        localStorage.setItem('tvSelected', false)
     }
 
     const [films, setFilms] = React.useState([{title: "hahaha"}, {title: "another film"}])
     const [tvs, setTVs] = React.useState([{title: "hahaha"}, {title: "another tv show"}])
 
     const [addingFilm, setAddingFilm] = React.useState(false)
+
+    const [userShown, setUserShown] = React.useState(false)
+
+    const showUser = event => {
+        if (userShown) {
+            setUserShown(false)
+        } else {
+            setUserShown(true)
+        }
+    }
+
+    let profile = null
+    if (userShown) {
+        profile = <div style={{position: 'fixed', top: '6.67%', right:'11px', zIndex: '100', color: 'white', textAlign: 'center'}}>
+            <ContextView
+                placement='bottom end'
+                padding="medium"
+            >
+                <div style={{padding:'auto'}}>
+                    <Avatar name='Max' display='block' margin='auto' />
+                </div>
+                <br />
+                <div style={{padding:'auto'}}>
+                    <Text textAlign='center' margin='auto'>User info ...</Text>
+                </div>
+            </ContextView>
+        </div>
+    }
 
     React.useEffect(() => {
         axios.get('http://localhost:9000/api').then(res => {
@@ -87,7 +130,9 @@ const App = () => {
                 setFilm={setFilm}
                 setTV={setTV}
                 reset={reset}
+                showUser={showUser}
             />
+            {profile}
             <Home
                 isFilm={filmSelected}
                 isTV={tvSelected}
@@ -102,7 +147,7 @@ const App = () => {
 
 import archiveIcon from '../public/images/icon1.jpg'
 
-const TopNav = ({setFilm, setTV, reset}) => {
+const TopNav = ({setFilm, setTV, reset, showUser}) => {
     return (
       <AppNav
         screenReaderLabel="App navigation"
@@ -119,7 +164,7 @@ const TopNav = ({setFilm, setTV, reset}) => {
             <AppNav.Item
                 renderLabel={<div></div>}
                 renderIcon={<IconButton screenReaderLabel="profile" color='primary'><IconUserLine /></IconButton>}
-                href="/"
+                onClick={showUser}
             />
         }
       >
@@ -138,9 +183,12 @@ const TopNav = ({setFilm, setTV, reset}) => {
 import avengerSrc from '../public/images/avengers.png'
 
 const Home = ({isFilm, isTV, films, tvs, addingFilm, setAddingFilm}) => {
-    const [open, setOpen]  = React.useState(true)
+    const [open, setOpen]  = React.useState(false)
     const handleTrayDismiss = () => {
         setOpen(false)
+    }
+    const handleTrayOpen = () => {
+        setOpen(true)
     }
 
     let trayButton = null
@@ -150,7 +198,7 @@ const Home = ({isFilm, isTV, films, tvs, addingFilm, setAddingFilm}) => {
         trayButton = <View>
                         <IconButton
                             screenReaderLabel='Tray'
-                            onClick={() => { setOpen(true) }}
+                            onClick={handleTrayOpen}
                             color='primary'
                         >
                             <IconAddLine />
@@ -159,11 +207,12 @@ const Home = ({isFilm, isTV, films, tvs, addingFilm, setAddingFilm}) => {
                     </View>
     }
 
-    const [selection, setSelection] = React.useState({_id: "", title: "", description: "", rating: 0, img: ""})
+    const [selection, setSelection] = React.useState(JSON.parse(localStorage.getItem('selection')) || {_id: "", title: "", description: "", rating: 0, img: ""})
     const select = event => {
         const curr_selection_arr = films.filter(film => film.title == event.target.innerText)
         const curr_selection = curr_selection_arr[0]
         setSelection(curr_selection)
+        localStorage.setItem('selection', JSON.stringify(curr_selection))
     }
 
     const handleAdd = event => {
@@ -172,7 +221,7 @@ const Home = ({isFilm, isTV, films, tvs, addingFilm, setAddingFilm}) => {
 
     let main = <Selection selection={selection} />
     if (addingFilm) {
-        main = <AddFilmForm setAddingFilm={setAddingFilm} />
+        main = <AddFilmForm setAddingFilm={setAddingFilm} setSelection={setSelection}/>
     }
 
     if (!isFilm && !isTV){
@@ -274,13 +323,19 @@ const Selection = ({selection}) => {
     if (selection.title == "") {
         return(
             <View>
-                <Text size='xx-large'>Select a film to begin...</Text>
+                <Text size='xx-large'>Open the menu and select a film to begin...</Text>
             </View>
         )
     }
     let imgSrc = null
-    if (selection.img != "") {
-        imgSrc = require(`../../api/public/images/uploads/${selection.img}`)
+    let imgElement = null
+    if (selection.img && selection.img != "") {
+        try{
+            imgSrc = require(`../../api/public/images/uploads/${selection.img}`)
+            imgElement = <Img src={imgSrc} display='block' />
+        } catch (e) {
+            imgElement = <Billboard heading="Refresh Page to See Image!"/>
+        }
     }
 
     return (
@@ -297,7 +352,7 @@ const Selection = ({selection}) => {
             </View>
             <br />
             <View display='block'>
-                <Img src={imgSrc} display='block' />
+                {imgElement}
                 <Text size="large">
                     <p>{selection.description}</p>
                 </Text>
@@ -306,7 +361,7 @@ const Selection = ({selection}) => {
     )
 }
 
-const AddFilmForm = ({setAddingFilm}) => {
+const AddFilmForm = ({setAddingFilm, setSelection}) => {
     const [title, setTitle] = React.useState("")
     const [des, setDes] = React.useState("")
     const [rating, setRating] = React.useState(0)
@@ -334,16 +389,25 @@ const AddFilmForm = ({setAddingFilm}) => {
     }
 
     const handleSubmit = event => {
-        let headers = {
-            'Content-Type': "multipart/form-data"
-        }
-        let data = new FormData()
-        data.append('title', title)
-        data.append('des', des)
-        data.append('rating', rating)
-        data.append('file', img)
-        // How to fix this please help it automatically refreshes the whole app
-        axios.post('http://localhost:9000/api', data, {headers:headers}).then(res => {
+        let submissionPromise = new Promise((resolve, reject) => {
+            let headers = {
+                'Content-Type': "multipart/form-data"
+            }
+            let data = new FormData()
+            data.append('title', title)
+            data.append('des', des)
+            data.append('rating', rating)
+            data.append('file', img)
+            // How to fix this please help it automatically refreshes the whole app
+            axios.post('http://localhost:9000/api', data, {headers:headers}).then(res => {
+                resolve(res.data)
+            }).catch(err => {
+                reject(err)
+            })
+        })
+        submissionPromise.then(res => {
+            setSelection(res)
+            localStorage.setItem('selection', JSON.stringify(res))
             setAddingFilm(false)
         }).catch(err => {
             console.log(err)
@@ -417,6 +481,7 @@ const AddFilmForm = ({setAddingFilm}) => {
                 margin="small"
                 display='block'
                 onClick={handleSubmit}
+                type='reset'
             >
                 Submit
         </Button></View>

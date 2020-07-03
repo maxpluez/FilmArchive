@@ -37,7 +37,9 @@ module.exports = {
   },
   devServer: {
     contentBase: outputPath,
-    host: '0.0.0.0'
+    host: '0.0.0.0',
+    hot: false,
+    inline: false
   },
   plugins: [
     new HtmlWebpackPlugin({
