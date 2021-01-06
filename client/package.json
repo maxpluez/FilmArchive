@@ -31,7 +31,7 @@
     "@instructure/ui-text-input": "^7.1.1",
     "@instructure/ui-themeable": "^7.1.0",
     "@instructure/ui-view": "^7.1.0",
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "react": "^16.9.0",
     "react-dom": "^16.9.0",
     "requirejs": "^2.3.6"
